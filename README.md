@@ -49,7 +49,7 @@ Institute of Biotechnology, Vilnius University
 
 # Using ROPIUS0 for predictions
 
-   There are two main scripts. 
+   The description of the two main scripts follows. 
    The first, `srvs/distopred.sh`, is for the prediction of 
    inter-residue distance distributions given a multiple sequence 
    alignment (MSA) only. 
@@ -149,9 +149,9 @@ rankmodels.sh -i mymsa.afa -d pdbmodels -o myoutput \
    For facilitating the use of the ROPIUS0 software, a docker image is 
    made available at 
    [https://hub.docker.com/r/minmar/ropius0](https://hub.docker.com/r/minmar/ropius0)
-   External software is included in the ROPIUS0 docker image so that the 
-   user can run ROPIUS0 predictions without setting up CUDA drivers and 
-   installing external dependencies before. 
+   NN models and external software is included in the ROPIUS0 docker image 
+   so that the user can run ROPIUS0 predictions without setting up CUDA 
+   drivers and installing external dependencies before. 
 
    The ROPIUS0 image (2.58 GB, compressed) can be pulled from the Docker 
    repository using the command:
