@@ -39,8 +39,9 @@ def build_model(model_name, net_input, num_classes, crop_width, crop_height, fro
 	if model_name not in SUPPORTED_MODELS:
 		raise ValueError("The model you selected is not supported. The following models are currently supported: {0}".format(SUPPORTED_MODELS))
 
-	if frontend not in SUPPORTED_FRONTENDS:
-		raise ValueError("The frontend you selected is not supported. The following models are currently supported: {0}".format(SUPPORTED_FRONTENDS))
+	##{{MM}}
+	##if frontend not in SUPPORTED_FRONTENDS:
+	##	raise ValueError("The frontend you selected is not supported. The following models are currently supported: {0}".format(SUPPORTED_FRONTENDS))
 
 	if "ResNet50" == frontend and not os.path.isfile(os.path.join(mypath, "resnet_v2_50.ckpt")):
 	    download_checkpoints("ResNet50")

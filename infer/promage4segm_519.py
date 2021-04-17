@@ -32,7 +32,7 @@ from mrcnn import visualize
 from mrcnn.model import log
 
 ## private imports
-sys.path.insert(1, '/data/installed-software/ROPIUS0/bin')
+sys.path.insert(1, os.path.join(sys.path[0], os.pardir, 'bin'))
 from getchainseq import getChainSequence
 from getdist import getDistances
 
@@ -1601,7 +1601,7 @@ class PromageDataset(utils.Dataset):
 ##
 if __name__ == '__main__':
     ## test routines
-    basedir = '/home2/mindaugas/projects/data/pdb70_from_mmcif_200205__selection/'
+    basedir = '/data/CASP14_datasets/'
     # directory to save logs and trained model
     MODEL_DIR = os.path.join(basedir, 'mrcnn_model1')
 

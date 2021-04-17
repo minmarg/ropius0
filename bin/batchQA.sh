@@ -1,10 +1,10 @@
 #!/bin/bash
 
-INSTDIR=/data/installed-software/ROPIUS0
+INSTDIR="$(cd $(dirname "$0")/..; pwd)"
 
 QAPROG=${INSTDIR}/infer/QA4segm_519.py
 
-DATASET=/data/CASP14_datasets/pdb70_from_mmcif_200205__selection__promage__SEMSEGM
+DATASET=${INSTDIR}/pdb70_from_mmcif_200205__selection__promage__SEMSEGM
 MODELPFX=${INSTDIR}/models/checkpoints_519_normonly_from_scratch__Encoder-Decoder-Skip_lr0.0001__RUN
 #MODELPFX=/home2/mindaugas/projects/ROPIUS0/bin/checkpoints_519_normonly_from_scratch__Encoder-Decoder-Skip_lr0.001__RUN
 

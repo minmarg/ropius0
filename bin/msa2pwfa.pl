@@ -257,7 +257,7 @@ sub ExtractAlignments
         }
 
         if( $last =~ /^>(\S+)(?:.*\s+)(?:\()?(?:ALN:\s+)?(\d+)[\-\s](\d+)(?:\))?(.*)$/) {
-            $sbjct = "$1$4";
+            $sbjct = "$1 $4";
             $sbjctstart = $2;
             $sbjctend = $3;
             if($last =~ /[=\s]([\d\.eE\-\+]+|n\/a)$/) {

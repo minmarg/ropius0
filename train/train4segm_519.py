@@ -19,9 +19,10 @@ matplotlib.use('Agg')
 import multiprocessing
 from joblib import Parallel, delayed
 
-sys.path.insert(1, '/data/installed-software/ROPIUS0/bin')
-sys.path.insert(1, '/data/installed-software/ROPIUS0/infer')
-sys.path.insert(1, '/data/installed-software/Semantic-Segmentation-Suite')
+sys.path.insert(1, os.path.join(sys.path[0], os.pardir, 'bin'))
+sys.path.insert(1, os.path.join(sys.path[0], os.pardir, 'infer'))
+sys.path.insert(1, os.path.join(sys.path[0], os.pardir, 'Semantic-Segmentation-Suite'))
+
 from frontends import resnet_v2
 from utils import utils, helpers
 from builders import model_builder
@@ -65,7 +66,7 @@ parser.add_argument('--v_flip', type=str2bool, default=False, help='Whether to r
 parser.add_argument('--brightness', type=float, default=None, help='Whether to randomly change the image brightness for data augmentation. Specifies the max bightness change as a factor between 0.0 and 1.0. For example, 0.1 represents a max brightness change of 10%% (+-).')
 parser.add_argument('--rotation', type=float, default=None, help='Whether to randomly rotate the image for data augmentation. Specifies the max rotation angle in degrees.')
 parser.add_argument('--model', type=str, default="FC-DenseNet56", help='The model you are using. See model_builder.py for supported models')
-parser.add_argument('--frontend', type=str, default="ResNet101", help='The frontend you are using. See frontend_builder.py for supported models')
+parser.add_argument('--frontend', type=str, default="", help='The frontend you are using. See frontend_builder.py for supported models') ##ResNet101
 parser.add_argument('--gpu', type=int, default=0, help='ID of GPU to use')
 args = parser.parse_args()
 
@@ -127,7 +128,7 @@ net_input = tf.placeholder(tf.float32,shape=[None,None,None,conf.IMAGE_CHANNEL_C
 ##
 if args.crop_height != args.crop_width:
     sys.exit("ERROR: Crop height and width should be equal.")
-basedir = '/home2/mindaugas/projects/data/pdb70_from_mmcif_200205__selection/'
+basedir = '/data/CASP14_datasets/'
 conf.IMAGE_MIN_DIM = args.crop_height
 trnset_prodir = basedir + 'pdb70_from_mmcif_200205__selection__comer2_pro__training'
 trnset_covdir = basedir + 'pdb70_from_mmcif_200205__selection__comer2_cov__training'

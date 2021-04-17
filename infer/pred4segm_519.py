@@ -4,8 +4,9 @@ import tensorflow as tf
 import argparse
 import numpy as np
 
-sys.path.insert(1, '/data/installed-software/ROPIUS0/bin')
-sys.path.insert(1, '/data/installed-software/Semantic-Segmentation-Suite')
+sys.path.insert(1, os.path.join(sys.path[0], os.pardir, 'bin'))
+sys.path.insert(1, os.path.join(sys.path[0], os.pardir, 'Semantic-Segmentation-Suite'))
+
 from utils import utils, helpers
 from builders import model_builder
 
@@ -23,7 +24,7 @@ parser.add_argument('--checkpoint_path', type=str, default=None, required=True, 
 parser.add_argument('--crop_height', type=int, default=128, help='Height of cropped input image to network.')
 parser.add_argument('--crop_width', type=int, default=128, help='Width of cropped input image to network.')
 parser.add_argument('--model', type=str, default='FC-DenseNet103', required=False, help='The model being used.')
-parser.add_argument('--frontend', type=str, default="ResNet101", help='The frontend being used.')
+parser.add_argument('--frontend', type=str, default="", help='The frontend being used.') ##ResNet101
 parser.add_argument('--dataset', type=str, default="SEMSEGM", required=False, help='The dataset in use.')
 parser.add_argument('--outpat', type=str, required=False, help='Output filename pattern.')
 parser.add_argument('--mean', action='store_true', help='Calculate the mean predicted distance for each pair of residues.')

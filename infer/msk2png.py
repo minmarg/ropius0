@@ -3,8 +3,9 @@ import os,time,cv2, sys, math
 import argparse
 import numpy as np
 
-sys.path.insert(1, '/data/installed-software/ROPIUS0/bin')
-sys.path.insert(1, '/data/installed-software/Semantic-Segmentation-Suite')
+sys.path.insert(1, os.path.join(sys.path[0], os.pardir, 'bin'))
+sys.path.insert(1, os.path.join(sys.path[0], os.pardir, 'Semantic-Segmentation-Suite'))
+
 from utils import utils, helpers
 
 # private imports

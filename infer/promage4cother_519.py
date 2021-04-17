@@ -32,7 +32,7 @@ from mrcnn import utils
 #from mrcnn.model import log
 
 ## private imports
-sys.path.insert(1, '/data/installed-software/ROPIUS0/bin')
+sys.path.insert(1, os.path.join(sys.path[0], os.pardir, 'bin'))
 from getchainseq import getChainSequence
 from getdist import getDistances
 

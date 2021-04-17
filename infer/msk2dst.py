@@ -9,9 +9,9 @@ import numpy as np
 import multiprocessing
 from joblib import Parallel, delayed
 
-sys.path.insert(1, '/data/installed-software/ROPIUS0/bin')
-sys.path.insert(1, '/data/installed-software/ROPIUS0/infer')
-sys.path.insert(1, '/data/installed-software/Semantic-Segmentation-Suite')
+sys.path.insert(1, os.path.join(sys.path[0], os.pardir, 'bin'))
+sys.path.insert(1, os.path.join(sys.path[0], os.pardir, 'Semantic-Segmentation-Suite'))
+
 from utils import utils, helpers
 
 # private imports
