@@ -10,6 +10,7 @@ COMER2DIR="/data/installed-software/comer2"
 PSIPREDDIR="/data/installed-software/psipred3.5"
 BLASTDIR="/data/installed-software/ncbi-blast-2.2.23+"
 per_residue_energies="/data/installed-software/rosetta_bin_linux_2019.35.60890_bundle/main/source/bin/per_residue_energies.static.linuxgccrelease"
+ALTthr=""
 
 usage="
 Rank protein structural models using a deep learning framework.
@@ -33,6 +34,9 @@ Options:
                NOTE: If some intermediate files are found to exist, the 
                corresponding stage of the algorithm will be skipped.
        Default=.
+-a             Use alternative thresholds for ranking structural models, useful 
+               when the input MSA contains many diverse sequences and most of 
+               the structural models are of similar quality.
 -c <n_cpus>    Number of CPU cores to use.
        Default=1
 -C <path>      COMER2 installation path.
@@ -59,12 +63,13 @@ ${basename} -i mymsa.afa -d pdbmodels -o myoutput \\
 ##-S /data/installed-software/rosetta_bin_linux_2019.35.60890_bundle/main/source/bin/score_jd2.static.linuxgccrelease \\
 
 
-while getopts "i:d:o:c:C:P:B:S:R:h" Option
+while getopts "i:d:o:ac:C:P:B:S:R:h" Option
 do
     case $Option in
         i ) MSA="${OPTARG}" ;;
         d ) INDIR="${OPTARG}" ;;
         o ) OUTDIR="${OPTARG}" ;;
+        a ) ALTthr="_alt" ;;
         c ) nCPUs="${OPTARG}" ;;
         C ) COMER2DIR="${OPTARG}" ;;
         P ) PSIPREDDIR="${OPTARG}" ;;
@@ -124,7 +129,7 @@ if [ ! -d "${SEMSEGM_DIR}" ]; then echo -e "\nERROR: Package directory not found
 if [ ! -f "${model_RUN0e333}.data-00000-of-00001" ]; then echo -e "\nERROR: Package NN model file not found: \"${model_RUN0e333}\"\n" >&2; exit 1; fi
 if [ ! -f "${model_RUN1e207}.data-00000-of-00001" ]; then echo -e "\nERROR: Package NN model file not found: \"${model_RUN1e207}\"\n" >&2; exit 1; fi
 if [ ! -f "${model_RUN2e201}.data-00000-of-00001" ]; then echo -e "\nERROR: Package NN model file not found: \"${model_RUN2e201}\"\n" >&2; exit 1; fi
-##if [ ! -f "${model_RUN2e243}" ]; then echo -e "\nERROR: Package NN model file not found: \"${model_RUN2e243}\"\n" >&2; exit 1; fi
+if [ ! -f "${model_RUN2e243}.data-00000-of-00001" ]; then echo -e "\nERROR: Package NN model file not found: \"${model_RUN2e243}\"\n" >&2; exit 1; fi
 
 
 msaname="$(basename "${MSA}")"
@@ -274,16 +279,25 @@ fi
 
 
 ## Calculate the match between the prediction and the pdb models
-matchR0e333="${OUTDIR}/${indirname}__QA2__modelRUN0e333__full_d20_p0.3"
-matchR1e207="${OUTDIR}/${indirname}__QA2__modelRUN1e207__full_d10_p0.1"
-matchR2e201="${OUTDIR}/${indirname}__QA2__modelRUN2e201__full_d8_p0.1"
+if [ -z "${ALTthr}" ]; then
+    m0d=20; m0p="0.3"
+    m1d=10; m1p="0.1"
+    m2d=8; m2p="0.1"; m2n=201; mR2e201="${model_RUN2e201}"
+else
+    m0d=32; m0p="0.2"
+    m1d=32; m1p="0.2"
+    m2d=20; m2p="0.2"; m2n=243; mR2e201="${model_RUN2e243}"
+fi
+matchR0e333="${OUTDIR}/${indirname}__QA2__modelRUN0e333__full_d${m0d}_p${m0p}"
+matchR1e207="${OUTDIR}/${indirname}__QA2__modelRUN1e207__full_d${m1d}_p${m1p}"
+matchR2e201="${OUTDIR}/${indirname}__QA2__modelRUN2e${m2n}__full_d${m2d}_p${m2p}"
 MODELNUM=7
 TARGET=MYTARGET
 
 echo -e "Calculating the match between the pdb models and prediction 0..."
 cmd="python3 \"${QA4segm_519}\" --inpmg=\"${pmgfullname}\" --inmskdir=\"${modelsmskdir}\""
 cmd+=" --dataset=\"${SEMSEGM_DIR}\" --checkpoint_path=\"${model_RUN0e333}\" --range=full"
-cmd+=" --target=${TARGET} --modelnum=${MODELNUM} --dst=20 --prb=0.3 --out=\"${matchR0e333}\""
+cmd+=" --target=${TARGET} --modelnum=${MODELNUM} --dst=${m0d} --prb=${m0p} --out=\"${matchR0e333}\""
 eval "${cmd}"
 if [ $? -ne 0 ]; then
     echo -e "\nERROR: Match calculation using NN model 0 failed.\n" >&2
@@ -293,7 +307,7 @@ fi
 echo -e "Calculating the match between the pdb models and prediction 1..."
 cmd="python3 \"${QA4segm_519}\" --inpmg=\"${pmgfullname}\" --inmskdir=\"${modelsmskdir}\""
 cmd+=" --dataset=\"${SEMSEGM_DIR}\" --checkpoint_path=\"${model_RUN1e207}\" --range=full"
-cmd+=" --target=${TARGET} --modelnum=${MODELNUM} --dst=10 --prb=0.1 --out=\"${matchR1e207}\""
+cmd+=" --target=${TARGET} --modelnum=${MODELNUM} --dst=${m1d} --prb=${m1p} --out=\"${matchR1e207}\""
 eval "${cmd}"
 if [ $? -ne 0 ]; then
     echo -e "\nERROR: Match calculation using NN model 1 failed.\n" >&2
@@ -302,8 +316,8 @@ fi
 
 echo -e "Calculating the match between the pdb models and prediction 2..."
 cmd="python3 \"${QA4segm_519}\" --inpmg=\"${pmgfullname}\" --inmskdir=\"${modelsmskdir}\""
-cmd+=" --dataset=\"${SEMSEGM_DIR}\" --checkpoint_path=\"${model_RUN2e201}\" --range=full"
-cmd+=" --target=${TARGET} --modelnum=${MODELNUM} --dst=8 --prb=0.1 --out=\"${matchR2e201}\""
+cmd+=" --dataset=\"${SEMSEGM_DIR}\" --checkpoint_path=\"${mR2e201}\" --range=full"
+cmd+=" --target=${TARGET} --modelnum=${MODELNUM} --dst=${m2d} --prb=${m2p} --out=\"${matchR2e201}\""
 eval "${cmd}" 
 if [ $? -ne 0 ]; then
     echo -e "\nERROR: Match calculation using NN model 2 failed.\n" >&2
@@ -313,19 +327,24 @@ fi
 
 
 ## Combine all predictions with Rosetta energy terms
-outputrankfile="${OUTDIR}/${indirname}__QA2.rank"
+outputrankfile="${OUTDIR}/${indirname}__QA2${ALTthr}.rank"
 
 echo -e "Combining predictions with Rosetta energy terms..."
 if [ -f "${outputrankfile}" ]; then rm "${outputrankfile}"; fi
 cmd="\"${QAcombine_plus_RosettaE}\" -o \"${outputrankfile}\" -d \"${modelsrscdir}\""
-cmd+=" -t 7,10,12,22 -w 0.2 \"${matchR2e201}\" \"${matchR1e207}\" \"${matchR0e333}\""
+cmd+=" -t 7,10,12,22 -w 0.2"
+if [ -z "${ALTthr}" ]; then
+    cmd+=" \"${matchR2e201}\" \"${matchR1e207}\" \"${matchR0e333}\""
+else
+    cmd+=" \"${matchR1e207}\" \"${matchR0e333}\" \"${matchR2e201}\""
+fi
 eval "${cmd}"
 if [ $? -ne 0 ]; then
     echo -e "\nERROR: Combination of predictions failed.\n" >&2
     exit 1
 fi
 
-outputsrtrankfile="${OUTDIR}/${indirname}__QA2__sorted.rank"
+outputsrtrankfile="${OUTDIR}/${indirname}__QA2${ALTthr}__sorted.rank"
 perl -e 'while(<>){
     next unless/^\S+\s+[\d\.]+\s+(?:[\d\.]+|X)\s+(?:[\d\.]+|X)\s/;
     @a=split/\s+/;

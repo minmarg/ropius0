@@ -843,8 +843,8 @@ class PromageDataset(utils.Dataset):
         prodct = readProfile(profile_pathname)
         length = len(prodct['pro'])
 
-        outputmskdir = pdbfulldirname.strip(os.sep) + '.msk' if pdbfulldirname else 'msk'
-        outputpmgdir = pdbfulldirname.strip(os.sep) + '.pmg' if pdbfulldirname else 'pmg'
+        outputmskdir = pdbfulldirname.rstrip(os.sep) + '.msk' if pdbfulldirname else 'msk'
+        outputpmgdir = pdbfulldirname.rstrip(os.sep) + '.pmg' if pdbfulldirname else 'pmg'
 
         if not os.path.exists(outputmskdir):
             os.mkdir(outputmskdir)

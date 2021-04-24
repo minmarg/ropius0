@@ -121,6 +121,9 @@ Options:
                NOTE: If some intermediate files are found to exist, the 
                corresponding stage of the algorithm will be skipped.
        Default=.
+-a             Use alternative thresholds for ranking structural models, useful 
+               when the input MSA contains many diverse sequences and most of 
+               the structural models are of similar quality.
 -c <n_cpus>    Number of CPU cores to use.
        Default=1
 -C <path>      COMER2 installation path.
