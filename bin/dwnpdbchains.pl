@@ -25,7 +25,10 @@ $MYPROGNAME <Parameters>
 
 Parameters:
 
--i <filename>      Input list of pdb ids with chain identifiers (e.g., 1ZEE_A).
+-i <list>          Input list of pdb ids with chain identifiers 
+                   (e.g., 1ZEE_A), which can be given as a filename 
+                   (with one item per line) or in-line with 
+                   comma-separated entries.
 
 -o <directory>     Output directory of resulting files.
 
@@ -51,7 +54,6 @@ my  $result = GetOptions(
 do { print $usage; $Fail = 1; }  unless $result;
 do { print STDERR "ERROR: Input missing.\n$usage"; $Fail = 1; } unless($Fail || $INLIST);
 do { print STDERR "ERROR: Directory missing.\n$usage"; $Fail = 1; } unless($Fail || $LOCPDBDIR);
-do { print STDERR "ERROR: Input not found: $INLIST\n"; $Fail = 1; } unless($Fail || -f $INLIST);
 do { print STDERR "ERROR: Directory of structure files not found: $LOCPDBDIR\n"; $Fail = 1; } unless($Fail || -d $LOCPDBDIR);
 
 ##switch to python3
@@ -96,23 +98,30 @@ unless( -d $OUTDIR || mkdir($OUTDIR)) {
 my  $command;
 my  @tids;
 
-unless( open(I, "$INLIST")) {
-    print( STDERR "ERROR: Failed to open input file: $INLIST\n");
-    exit(1);
+if(-f $INLIST) {
+    ##the list given as a filename
+    unless( open(I, $INLIST)) {
+        print( STDERR "ERROR: Failed to open input file: $INLIST\n");
+        exit(1);
+    }
+    while(<I>) {
+        next if /^\s*#/;
+        my @a = split(/\s+/);
+        push @tids, $a[0];
+    }
+    close(I);
+} else {
+    ##the list provided directly
+    @tids = split(',',$INLIST);
 }
-while(<I>) {
-    next if /^\s*#/;
-    my @a = split(/\s+/);
-    push @tids, $a[0];
-}
-close(I);
 
 foreach my $tmpl(@tids) {
     my $outfile;
     next if -f "$OUTDIR/$tmpl";
+    next if -f File::Spec->catfile($OUTDIR, GetOutputTemplateName($tmpl).".ent");
     unless( GetStructure($UNZIP, $GETCHAIN, $LOCPDBDIR, \%FTPPDBDIR, $tmpl, \$outfile)) {
         print( STDERR "ERROR: Failed to obtain structure for: $tmpl\n");
-        exit(1);
+        next;##exit(1);
     }
     if($OUTDIR cmp $LOCPDBDIR) {
         unless( RunCommandV("mv $LOCPDBDIR/$outfile $OUTDIR/")) {
@@ -139,7 +148,7 @@ sub GetOutputTemplateName
 {
     my $ltmplname = shift;##template name
     my $ltmplstrbasename = $ltmplname;##output template basename
-    $ltmplstrbasename =~ s/\./_/g;
+    ##$ltmplstrbasename =~ s/\./_/g;
     return $ltmplstrbasename;
 }
 

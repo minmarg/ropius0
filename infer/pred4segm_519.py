@@ -46,7 +46,9 @@ print("Mean -->", args.mean)
 
 # Initializing network
 ##{{MM
-config = tf.ConfigProto(device_count={'GPU':0},gpu_options=tf.GPUOptions(allow_growth=True, visible_device_list=str(0)),log_device_placement=False)
+#config = tf.ConfigProto(device_count={'GPU':0},gpu_options=tf.GPUOptions(allow_growth=True, visible_device_list=str(0)),log_device_placement=False)
+#config = tf.ConfigProto(device_count={'GPU':0},gpu_options=tf.GPUOptions(allow_growth=True, visible_device_list='0,1,2'),log_device_placement=False)
+config = tf.ConfigProto(device_count={'GPU':0},log_device_placement=False)
 ##}}
 ##config = tf.ConfigProto()
 ##config.gpu_options.allow_growth = True

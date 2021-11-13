@@ -1,18 +1,13 @@
 #!/usr/bin/env python
 
-## (C)2020 Mindaugas Margelevicius, Vilnius University
+## (C)2021 Mindaugas Margelevicius, Vilnius University
 
 import sys, os
 import fnmatch
 import argparse
 import numpy as np
 import multiprocessing
-from joblib import Parallel, delayed
-
-sys.path.insert(1, os.path.join(sys.path[0], os.pardir, 'bin'))
-sys.path.insert(1, os.path.join(sys.path[0], os.pardir, 'Semantic-Segmentation-Suite'))
-
-from utils import utils, helpers
+import ray
 
 # private imports
 import promage4segm_519 as pmg
@@ -27,6 +22,10 @@ args = parser.parse_args()
 if not (args.mask or args.indir):
     sys.exit("ERROR: Mask file or directory of masks should be provided.")
 
+n_cores = multiprocessing.cpu_count()//2 ##use physical cores
+
+ray.init(num_cpus=n_cores)
+
 ##class_names_list, label_values = helpers.get_label_info(os.path.join(args.dataset, "class_dict.csv"))
 
 ##num_classes = len(label_values)
@@ -39,38 +38,52 @@ conf = pmg.PromageConfig()
 
 mskext = '.msk.npz' ## file extension of compressed preprocessed promage masks with its class ids in binary format
 
-def writeDistances(inputfile, outputfile):
+@ray.remote
+def writeDistances(index, nmskfiles, step, mskfiles_id, indir, outdir):
     """Convert information in the mask file to distances;
     inputfile, input file; outputfile, output file.
     """
-    if os.path.isfile(outputfile):
-        return
+    def reverse_one_hot(image):
+        """
+        Transform a 2D array in one-hot format (depth is num_classes),
+        to a 2D array with only 1 channel, where each pixel value is
+        the classified class key. (code adopted from Semantic-Segmentation-Suite.)
+        """
+        x = np.argmax(image, axis = -1)
+        return x
 
-    promage_infer = pmg.PromageDataset(conf, keepinmemory=True)
-    promage_infer.loadPromage1(inputfile)
-    loaded_mask, _ = promage_infer.load_mask(0)
+    for i in range(index, nmskfiles, step):
+        inputfile = os.path.join(indir, mskfiles_id[i])
+        outputfile = os.path.join(outdir, mskfiles_id[i]+'_distances.out')
 
-    sys.stderr.write("Mask shape: " + str(loaded_mask.shape) + "\n")
+        if os.path.isfile(outputfile):
+            continue
 
-    ## translate one-hot-coded mask to 2D matrix of distance values
-    lfunc = lambda ndx: int(promage_infer.class_names[ndx])
-    ndx2dfunc = np.vectorize(lfunc)
-    ## the mask is one-hot-coded, reverse it to distance values
-    loaded_mask = helpers.reverse_one_hot(loaded_mask)
-    ## fill the matrix with a value one greater than the maximum distance
-    dstmtx = np.full(loaded_mask.shape, conf.LST_CLASS + 1)
-    if np.shape(loaded_mask[loaded_mask>0])[0] > 0:
-        dstmtx[loaded_mask>0] = ndx2dfunc(loaded_mask[loaded_mask>0])
+        promage_infer = pmg.PromageDataset(conf, keepinmemory=True)
+        promage_infer.loadPromage1(inputfile)
+        loaded_mask, _ = promage_infer.load_mask(0)
+
+        sys.stderr.write("Mask shape: " + str(loaded_mask.shape) + "\n")
+
+        ## translate one-hot-coded mask to 2D matrix of distance values
+        lfunc = lambda ndx: int(promage_infer.class_names[ndx])
+        ndx2dfunc = np.vectorize(lfunc)
+        ## the mask is one-hot-coded, reverse it to distance values
+        loaded_mask = reverse_one_hot(loaded_mask)
+        ## fill the matrix with a value one greater than the maximum distance
+        dstmtx = np.full(loaded_mask.shape, conf.LST_CLASS + 1)
+        if np.shape(loaded_mask[loaded_mask>0])[0] > 0:
+            dstmtx[loaded_mask>0] = ndx2dfunc(loaded_mask[loaded_mask>0])
 
 
-    ## print the upper triangle of the distance matrix
-    with open(outputfile,'w') as ofile:
-        for row in range(dstmtx.shape[0]):
-            for col in range(row+1,dstmtx.shape[0]):
-                dst = dstmtx[row,col]
-                if dst > conf.LST_CLASS:
-                    continue
-                ofile.write("%d %d %5.1f\n"%(row+1, col+1, dst))
+        ## print the upper triangle of the distance matrix
+        with open(outputfile,'w') as ofile:
+            for row in range(dstmtx.shape[0]):
+                for col in range(row+1,dstmtx.shape[0]):
+                    dst = dstmtx[row,col]
+                    if dst > conf.LST_CLASS:
+                        continue
+                    ofile.write("%d %d %5.1f\n"%(row+1, col+1, dst))
 
 
 
@@ -101,10 +114,9 @@ if __name__ == '__main__':
                     mskfiles.append(entry.name.rsplit(mskext)[0]) ##add filename only
 
         # parallel version
-        n_cores = multiprocessing.cpu_count()//2 ##use physical cores
-        Parallel(n_jobs=n_cores, prefer="threads")(delayed(writeDistances)(
-          os.path.join(args.indir, mskfiles[i]), 
-          os.path.join(args.output, mskfiles[i]+'_distances.out')) for i in range(len(mskfiles)))
+        mskfiles_id = ray.put(mskfiles) 
+        dummy = [writeDistances.remote(i, len(mskfiles), n_cores, mskfiles_id, args.indir, args.output) for i in range(n_cores)]
+        ray.get(dummy)
 
     sys.stderr.write("Finished!\n")
 

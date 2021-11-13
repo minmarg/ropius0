@@ -15,11 +15,9 @@ import logging
 import cv2
 import math
 import numpy as np
-#import tensorflow as tf
-#import matplotlib
-#import matplotlib.pyplot as plt
+import ray
 import multiprocessing
-from joblib import Parallel, delayed
+##from joblib import Parallel, delayed
 #from scipy.sparse import dok_matrix
 from Bio import Align
 from Bio.Align import substitution_matrices
@@ -32,16 +30,20 @@ from mrcnn import utils
 #from mrcnn.model import log
 
 ## private imports
-sys.path.insert(1, os.path.join(sys.path[0], os.pardir, 'bin'))
+##sys.path.insert(1, '/data/installed-software/ROPIUS0/bin')
 from getchainseq import getChainSequence
 from getdist import getDistances
 
 MYMODNAME = os.path.basename(sys.modules[__name__].__file__)
+n_cores = multiprocessing.cpu_count()//2 ##use physical cores
+ray.init(num_cpus=n_cores)
 
 ## ===========================================================================
 
 description = ("Prepare mutually compatible (wrt position) promages and "+
-    "structure masks from COMER2 profiles, xcov files, and PDB structures.")
+    "structure masks from COMER2 profiles, xcov files, and PDB structures. "+
+    "This is a ray version for parallelization, which is much more "+
+    "effective than Prallel.")
 
 def ParseArguments():
     """Parse command-line options.
@@ -356,6 +358,61 @@ def readXCovfile(covfile_pathname):
 ## ===========================================================================
 ## Dataset definition
 ##
+
+@ray.remote
+def makeandsavePromageWithoutMask(self, index, npromages, step):
+    """Make a promage corresponding to the given name for data at 
+    location index in the dataset and write it to file.
+    Mask is not made and written.
+    """
+    for i in range(index, npromages, step):
+        name = self.promage_names[i]
+
+        pmgpathname = os.path.join(self.pathpmg, name)
+        if os.path.isfile(pmgpathname+self.pmgext+self.npzext):
+            continue
+
+        self.preparePromageWithoutMask(i)
+        if not os.path.isfile(pmgpathname+self.pmgext+self.npzext):
+            np.savez_compressed(pmgpathname+self.pmgext,
+                     promage=self.prepared_promages[i])
+        # release resources
+        self.prepared_promages[i] = None
+
+
+@ray.remote
+def makeandsavePromage(self, index, npromages, step):
+    """Make a promage corresponding to the given name for data at 
+    location index in the dataset and write it to file.
+    """
+    for i in range(index, npromages, step):
+        name = self.promage_names[i]
+
+        pmgpathname = os.path.join(self.pathpmg, name) if self.pathpmg else name
+        mskpathname = os.path.join(self.pathmsk, name) if self.pathmsk else name
+        if os.path.isfile(pmgpathname+self.pmgext+self.npzext) and \
+           os.path.isfile(mskpathname+self.mskext+self.npzext):
+            continue
+
+        if os.path.isfile(mskpathname+self.mskext+self.npzext) and not self.pathpmg:
+            continue
+
+        self.preparePromage(i)
+        if not self.prepared_promages[i] is None and \
+           not os.path.isfile(pmgpathname+self.pmgext+self.npzext):
+            np.savez_compressed(pmgpathname+self.pmgext,
+                     promage=self.prepared_promages[i])
+        if not self.prepared_masks[i] is None and \
+           not os.path.isfile(mskpathname+self.mskext+self.npzext):
+            np.savez_compressed(mskpathname+self.mskext,
+                     promask=self.prepared_masks[i])
+                     ##classids=self.prepared_classids[i])
+        # release resources
+        self.prepared_promages[i] = None
+        self.prepared_masks[i] = None
+        self.prepared_classids[i] = None
+
+
 class PromageDataset(utils.Dataset):
     """Transform input profile and profile cross-covariance files to promage
     format and make a promage dataset.
@@ -425,55 +482,6 @@ class PromageDataset(utils.Dataset):
         [dstset.add(self.getDstClass(d)) for d in dstarray] # round to the nearest integer
         return sorted(dstset)
 
-
-
-
-
-    def makeandsavePromageWithoutMask(self, index, name):
-        """Make a promage corresponding to the given name for data at 
-        location index in the dataset and write it to file.
-        Mask is not made and written.
-        """
-        pmgpathname = os.path.join(self.pathpmg, name)
-        if os.path.isfile(pmgpathname+self.pmgext+self.npzext):
-            return
-
-        self.preparePromageWithoutMask(index)
-        if not os.path.isfile(pmgpathname+self.pmgext+self.npzext):
-            np.savez_compressed(pmgpathname+self.pmgext,
-                     promage=self.prepared_promages[index])
-        # release resources
-        self.prepared_promages[index] = None
-
-
-
-    def makeandsavePromage(self, index, name):
-        """Make a promage corresponding to the given name for data at 
-        location index in the dataset and write it to file.
-        """
-        pmgpathname = os.path.join(self.pathpmg, name) if self.pathpmg else name
-        mskpathname = os.path.join(self.pathmsk, name) if self.pathmsk else name
-        if os.path.isfile(pmgpathname+self.pmgext+self.npzext) and \
-           os.path.isfile(mskpathname+self.mskext+self.npzext):
-            return
-
-        if os.path.isfile(mskpathname+self.mskext+self.npzext) and not self.pathpmg:
-            return
-
-        self.preparePromage(index)
-        if not self.prepared_promages[index] is None and \
-           not os.path.isfile(pmgpathname+self.pmgext+self.npzext):
-            np.savez_compressed(pmgpathname+self.pmgext,
-                     promage=self.prepared_promages[index])
-        if not self.prepared_masks[index] is None and \
-           not os.path.isfile(mskpathname+self.mskext+self.npzext):
-            np.savez_compressed(mskpathname+self.mskext,
-                     promask=self.prepared_masks[index])
-                     ##classids=self.prepared_classids[index])
-        # release resources
-        self.prepared_promages[index] = None
-        self.prepared_masks[index] = None
-        self.prepared_classids[index] = None
 
 
     def makeandsaveClassDict(self):
@@ -577,11 +585,13 @@ class PromageDataset(utils.Dataset):
         if not make: return
 
         # parallel version
-        n_cores = multiprocessing.cpu_count()//2 ##use physical cores
         if pdbdir:
-            Parallel(n_jobs=n_cores, prefer="threads")(delayed(self.makeandsavePromage)(i, profiles[i]) for i in range(npromages))
+            dummy = [makeandsavePromage.remote(self, i, npromages, n_cores) for i in range(n_cores)]
+            ##Parallel(n_jobs=n_cores, prefer="threads")(delayed(self.makeandsavePromage)(i, profiles[i]) for i in range(npromages))
         else:
-            Parallel(n_jobs=n_cores, prefer="threads")(delayed(self.makeandsavePromageWithoutMask)(i, profiles[i]) for i in range(npromages))
+            dummy = [makeandsavePromageWithoutMask.remote(self, i, npromages, n_cores) for i in range(n_cores)]
+            ##Parallel(n_jobs=n_cores, prefer="threads")(delayed(self.makeandsavePromageWithoutMask)(i, profiles[i]) for i in range(npromages))
+        ray.get(dummy)
 
 
 
